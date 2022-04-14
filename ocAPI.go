@@ -28,12 +28,20 @@ func main() {
 	router.Run("localhost:8080")
 }
 
-func postCredentials(c *gin.Context) {
+func validateCredentials(c *gin.Context, authUser user) {
 	var newUser user
 
 	if err := c.BindJSON(&newUser); err != nil {
 		return
 	}
 
-	c.IndentedJSON(http.StatusCreated, newUser)
+	if newUser.Username == authUser.Username &&
+		newUser.Password == authUser.Password &&
+		newUser.Token == authUser.Token {
+		c.IndentedJSON(http.StatusOK, gin.H{"status": "authorized"})
+		return
+	} else {
+		c.IndentedJSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+	}
+
 }
