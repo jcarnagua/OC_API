@@ -6,42 +6,53 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	cors "github.com/rs/cors/wrapper/gin"
 )
 
-type user struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Token    string `json:"token"`
+type User struct {
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Token      string `json:"token"`
+	Authorized bool   `json:"authorized"`
 }
 
 func main() {
 	router := gin.Default()
-	hours, minutes, _ := time.Now().Clock()
-	currTime := fmt.Sprintf("%02d%02d", hours, minutes)
-	authorizedUser := user{Username: "c137@onecause.com", Password: "#th@nH@rm#y#r!$100%D0p#", Token: currTime}
 
-	fmt.Println("Hello World! Current time is: " + currTime +
-		"\nUsername is: " + authorizedUser.Username +
-		"\nPassword is: " + authorizedUser.Password +
-		"\nToken is: " + authorizedUser.Token)
+	router.Use(cors.Default())
 
-	router.Run("localhost:8080")
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"Hello": "World"})
+	})
+
+	router.POST("/login", validateCredentials)
+
+	router.Run(":8080")
 }
 
-func validateCredentials(c *gin.Context, authUser user) {
-	var newUser user
+func validateCredentials(c *gin.Context) {
+	var newUser User
+	hours, minutes, _ := time.Now().Clock()
+	currTime := fmt.Sprintf("%02d%02d", hours, minutes)
+	authorizedUser := User{Username: "c137@onecause.com", Password: "#th@nH@rm#y#r!$100%D0p#", Token: currTime}
 
-	if err := c.BindJSON(&newUser); err != nil {
+	c.Header("Access-Control-Allow-Origin", "http://localhost:4200")
+
+	if err := c.ShouldBindJSON(&newUser); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if newUser.Username == authUser.Username &&
-		newUser.Password == authUser.Password &&
-		newUser.Token == authUser.Token {
-		c.IndentedJSON(http.StatusOK, gin.H{"status": "authorized"})
+	newUser.Authorized = false
+
+	if newUser.Username == authorizedUser.Username &&
+		newUser.Password == authorizedUser.Password &&
+		newUser.Token == authorizedUser.Token {
+		newUser.Authorized = true
+		c.JSON(http.StatusOK, gin.H{"authorized": newUser.Authorized})
 		return
-	} else {
-		c.IndentedJSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
 	}
+
+	c.JSON(http.StatusOK, gin.H{"authorized": newUser.Authorized})
 
 }
